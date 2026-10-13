@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>브롤스타즈 계정 연동</title>
+    <!-- 슈퍼셀 느낌의 굵고 시원한 폰트 (Teko / 둥근 고딕) -->
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@600&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        body {
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #111;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            text-align: center;
+        }
+        .logo {
+            font-family: 'Teko', sans-serif;
+            font-size: 42px;
+            color: #111;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+        .input-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.2s ease;
+            background-color: #f9f9f9;
+        }
+        .input-group input:focus {
+            border-color: #2296f3;
+            background-color: #fff;
+        }
+        /* 슈퍼셀 스타일 파란색 그라데이션 버튼 (활성화) */
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 900;
+            color: #ffffff;
+            background: linear-gradient(to bottom, #3af, #15c);
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #0d47a1;
+            transition: all 0.1s ease;
+            margin-top: 10px;
+            text-transform: uppercase;
+        }
+        .btn-primary:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #0d47a1;
+        }
+        /* 비활성화 상태 (검은 글자, 흰 배경/연한 회색 테두리) */
+        .btn-disabled {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 900;
+            color: #111111;
+            background-color: #ffffff;
+            border: 2px solid #d0d0d0;
+            border-radius: 14px;
+            cursor: not-allowed;
+            margin-top: 10px;
+            opacity: 0.6;
+        }
+        .toggle-text {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #555;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .toggle-text span {
+            color: #15c;
+            text-decoration: underline;
+        }
+        .message {
+            margin-top: 15px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .error { color: #e53935; }
+        .success { color: #43a047; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="logo">Brawl ID</div>
+        <div class="subtitle" id="form-subtitle">계정 연동을 위해 로그인하세요</div>
+
+        <form id="auth-form">
+            <div class="input-group">
+                <label>이메일 주소</label>
+                <input type="email" id="email" placeholder="example@email.com" required>
+            </div>
+            <div class="input-group">
+                <label>비밀번호</label>
+                <input type="password" id="password" placeholder="비밀번호 입력 (6자리 이상)" required>
+            </div>
+            
+            <!-- 버튼 상태는 JS로 동적 제어 -->
+            <button type="submit" id="submit-btn" class="btn-primary">로그인 / 회원가입</button>
+        </form>
+
+        <div class="message" id="msg"></div>
+    </div>
+
+    <!-- Firebase SDK (Modular v11 / v13 최신 기준) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDrLL2RI2l3KAxOjumjnWBjx7xQveZxurU",
+            authDomain: "brawlserver.firebaseapp.com",
+            databaseURL: "https://brawlserver-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "brawlserver",
+            storageBucket: "brawlserver.firebasestorage.app",
+            messagingSenderId: "867858778111",
+            appId: "1:867858778111:web:42835f29e976a327ad89ca",
+            measurementId: "G-SFJ5TR7WNG"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const submitBtn = document.getElementById('submit-btn');
+        const msgDiv = document.getElementById('msg');
+
+        // URL 파라미터에서 현재 게임 내 유저 고유번호(Low ID 등) 가져오기 (예: ?lowId=12345)
+        const urlParams = new URLSearchParams(window.location.search);
+        const playerLowId = urlParams.get('lowId') || "GUEST_USER";
+
+        // 입력값이 비어있으면 비활성화 버튼 디자인 적용
+        function validateForm() {
+            if (!emailInput.value || !passwordInput.value) {
+                submitBtn.className = "btn-disabled";
+            } else {
+                submitBtn.className = "btn-primary";
+            }
+        }
+
+        emailInput.addEventListener('input', validateForm);
+        passwordInput.addEventListener('input', validateForm);
+        validateForm(); // 초기 실행
+
+        // 폼 제출 시 로그인 시도 -> 실패 시 자동 회원가입 진행
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            msgDiv.textContent = "처리 중...";
+            msgDiv.className = "message";
+
+            try {
+                // 1. 먼저 로그인 시도
+                let userCredential;
+                try {
+                    userCredential = await signInWithEmailAndPassword(auth, email, password);
+                } catch (loginError) {
+                    // 2. 계정이 없으면 자동으로 회원가입 진행
+                    if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential' || loginError.code === 'auth/wrong-password') {
+                        try {
+                            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                        } catch (signupError) {
+                            throw signupError;
+                        }
+                    } else {
+                        throw loginError;
+                    }
+                }
+
+                const uid = userCredential.user.uid;
+
+                // 3. Firestore에 계정 고유번호 저장 (계정 매핑)
+                const userRef = doc(db, "account_links", uid);
+                const userSnap = await getDoc(userRef);
+
+                if (!userSnap.exists()) {
+                    // 최초 연동인 경우 현재 게임 고유번호 저장
+                    await setDoc(userRef, {
+                        low_id: playerLowId,
+                        email: email,
+                        linked_at: serverTimestamp()
+                    });
+                }
+
+                msgDiv.textContent = "성공! 게임으로 돌아갑니다.";
+                msgDiv.className = "message success";
+
+                // TODO: 연동 성공 후 앱으로 콜백하거나 창 닫기 처리
+            } catch (error) {
+                msgDiv.textContent = "오류 발생: " + error.message;
+                msgDiv.className = "message error";
+            }
+        });
+    </script>
+</body>
+</html>
